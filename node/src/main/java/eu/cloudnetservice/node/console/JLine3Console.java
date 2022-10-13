@@ -90,12 +90,13 @@ public final class JLine3Console implements Console {
     this.terminal = TerminalBuilder.builder().system(true).encoding(StandardCharsets.UTF_8).build();
     this.lineReader = new InternalLineReader(this.terminal);
 
-    this.lineReader.setAutosuggestion(LineReader.SuggestionType.COMPLETER);
     this.lineReader.setCompleter(new JLine3Completer(this));
+    this.lineReader.setAutosuggestion(LineReader.SuggestionType.COMPLETER);
 
     this.lineReader.option(LineReader.Option.AUTO_GROUP, false);
     this.lineReader.option(LineReader.Option.AUTO_MENU_LIST, true);
-    this.lineReader.option(LineReader.Option.AUTO_FRESH_LINE, true);
+    this.lineReader.option(LineReader.Option.CASE_INSENSITIVE, true);
+    this.lineReader.option(LineReader.Option.COMPLETE_IN_WORD, true);
     this.lineReader.option(LineReader.Option.EMPTY_WORD_OPTIONS, false);
     this.lineReader.option(LineReader.Option.HISTORY_TIMESTAMPED, false);
     this.lineReader.option(LineReader.Option.DISABLE_EVENT_EXPANSION, true);
