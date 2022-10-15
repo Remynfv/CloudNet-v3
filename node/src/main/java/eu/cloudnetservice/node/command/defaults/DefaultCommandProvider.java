@@ -18,6 +18,8 @@ package eu.cloudnetservice.node.command.defaults;
 
 import cloud.commandframework.CommandManager;
 import cloud.commandframework.annotations.AnnotationParser;
+import cloud.commandframework.arguments.CommandSuggestionEngine;
+import cloud.commandframework.context.CommandContext;
 import cloud.commandframework.extra.confirmation.CommandConfirmationManager;
 import cloud.commandframework.meta.CommandMeta;
 import cloud.commandframework.meta.SimpleCommandMeta;
@@ -51,6 +53,9 @@ import eu.cloudnetservice.node.command.sub.ServiceCommand;
 import eu.cloudnetservice.node.command.sub.TasksCommand;
 import eu.cloudnetservice.node.command.sub.TemplateCommand;
 import eu.cloudnetservice.node.command.sub.VersionCommand;
+import eu.cloudnetservice.node.command.suggestion.FilteringCommandSuggestionProcessor;
+import eu.cloudnetservice.node.command.suggestion.HandlerSpecificCommandSuggestionEngine;
+import eu.cloudnetservice.node.command.suggestion.PassthroughSuggestionProcessor;
 import eu.cloudnetservice.node.console.Console;
 import eu.cloudnetservice.node.console.handler.ConsoleInputHandler;
 import eu.cloudnetservice.node.console.handler.ConsoleTabCompleteHandler;
@@ -83,11 +88,15 @@ public class DefaultCommandProvider implements CommandProvider {
     String.class,
     "cloudnet:documentation");
 
+  private final Console console;
+  private final CommandExceptionHandler exceptionHandler;
+
   private final CommandManager<CommandSource> commandManager;
   private final AnnotationParser<CommandSource> annotationParser;
   private final SetMultimap<ClassLoader, CommandInfo> registeredCommands;
-  private final CommandExceptionHandler exceptionHandler;
-  private final Console console;
+
+  private final CommandSuggestionEngine<CommandSource> filteringSuggestionProcessor;
+  private final CommandSuggestionEngine<CommandSource> passthroughSuggestionProcessor;
 
   /**
    * Constructs a new default implementation of the {@link CommandProvider}.
@@ -104,6 +113,13 @@ public class DefaultCommandProvider implements CommandProvider {
       CommandSource.class,
       parameters -> SimpleCommandMeta.empty());
     this.registeredCommands = Multimaps.newSetMultimap(new ConcurrentHashMap<>(), ConcurrentHashMap::newKeySet);
+    // suggestions
+    this.filteringSuggestionProcessor = new HandlerSpecificCommandSuggestionEngine<>(
+      this.commandManager,
+      new FilteringCommandSuggestionProcessor(this));
+    this.passthroughSuggestionProcessor = new HandlerSpecificCommandSuggestionEngine<>(
+      this.commandManager,
+      new PassthroughSuggestionProcessor(this));
     // handle our @CommandAlias annotation and apply the found aliases
     this.annotationParser.registerBuilderModifier(
       CommandAlias.class,
@@ -130,7 +146,6 @@ public class DefaultCommandProvider implements CommandProvider {
     // register pre- and post-processor to call our events
     this.commandManager.registerCommandPreProcessor(new DefaultCommandPreProcessor());
     this.commandManager.registerCommandPostProcessor(new DefaultCommandPostProcessor());
-    this.commandManager.commandSuggestionProcessor(new DefaultSuggestionProcessor(this));
     // register the command confirmation handling
     this.registerCommandConfirmation();
     this.exceptionHandler = new CommandExceptionHandler(this, eventManager);
@@ -141,7 +156,8 @@ public class DefaultCommandProvider implements CommandProvider {
    */
   @Override
   public @NonNull List<String> suggest(@NonNull CommandSource source, @NonNull String input) {
-    return this.commandManager.suggest(source, input);
+    CommandContext<CommandSource> context = new CommandContext<>(true, source, this.commandManager);
+    return this.filteringSuggestionProcessor.getSuggestions(context, input);
   }
 
   /**
@@ -237,7 +253,12 @@ public class DefaultCommandProvider implements CommandProvider {
     console.addTabCompleteHandler(UUID.randomUUID(), new ConsoleTabCompleteHandler() {
       @Override
       public @NonNull Collection<String> completeInput(@NonNull String line) {
-        return DefaultCommandProvider.this.commandManager.suggest(CommandSource.console(), line);
+        // we want all suggestions, without a filter
+        CommandContext<CommandSource> context = new CommandContext<>(
+          true,
+          CommandSource.console(),
+          DefaultCommandProvider.this.commandManager);
+        return DefaultCommandProvider.this.passthroughSuggestionProcessor.getSuggestions(context, line);
       }
     });
   }

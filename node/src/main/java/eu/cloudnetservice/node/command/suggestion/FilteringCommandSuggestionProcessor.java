@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eu.cloudnetservice.node.command.defaults;
+package eu.cloudnetservice.node.command.suggestion;
 
 import cloud.commandframework.execution.CommandSuggestionProcessor;
 import cloud.commandframework.execution.preprocessor.CommandPreprocessingContext;
@@ -24,63 +24,36 @@ import eu.cloudnetservice.node.command.CommandProvider;
 import eu.cloudnetservice.node.command.source.CommandSource;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.NonNull;
 
-/**
- * {@inheritDoc}
- */
-final class DefaultSuggestionProcessor implements CommandSuggestionProcessor<CommandSource> {
+public final class FilteringCommandSuggestionProcessor implements CommandSuggestionProcessor<CommandSource> {
 
   private final CommandProvider provider;
 
-  /**
-   * Constructs our own suggestion processor as we need to overwrite the default {@link CommandSuggestionProcessor} to
-   * support command unregister.
-   *
-   * @param provider the command provider to access the registered commands with.
-   */
-  DefaultSuggestionProcessor(@NonNull CommandProvider provider) {
+  public FilteringCommandSuggestionProcessor(@NonNull CommandProvider provider) {
     this.provider = provider;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public @NonNull List<String> apply(
     @NonNull CommandPreprocessingContext<CommandSource> context,
-    @NonNull List<String> strings
+    @NonNull List<String> allSuggestions
   ) {
     // check if the user tries to complete all command roots
     if (!context.getCommandContext().getRawInputJoined().contains(" ")) {
       return this.provider.commands().stream().map(Nameable::name).collect(Collectors.toList());
     }
+
     // is the queue is empty just use a blank string.
-    String input;
-    if (context.getInputQueue().isEmpty()) {
-      input = "";
-    } else {
-      input = context.getInputQueue().peek();
-    }
+    var input = Objects.requireNonNullElse(context.getInputQueue().peek(), "");
 
     List<String> suggestions = new LinkedList<>();
-    for (var suggestion : strings) {
+    for (var suggestion : allSuggestions) {
       // check if clouds suggestion matches the input
       if (StringUtil.startsWithIgnoreCase(suggestion, input)) {
-        // validate that the command is registered
-        var rawInput = context.getCommandContext().getRawInput();
-        if (rawInput.size() > 1) {
-          // there are already arguments - validate that the command root is registered before suggesting further arguments
-          if (this.provider.command(rawInput.get(0)) != null) {
-            suggestions.add(suggestion);
-          }
-        } else {
-          // if there are no arguments yet, just validate that the suggestion is registered as a command
-          if (this.provider.command(suggestion) != null) {
-            suggestions.add(suggestion);
-          }
-        }
+        suggestions.add(suggestion);
       }
     }
     return suggestions;

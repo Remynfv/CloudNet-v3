@@ -94,15 +94,18 @@ public final class JLine3Console implements Console {
     this.lineReader.setAutosuggestion(LineReader.SuggestionType.COMPLETER);
 
     this.lineReader.option(LineReader.Option.AUTO_GROUP, false);
+    this.lineReader.option(LineReader.Option.HISTORY_BEEP, false);
     this.lineReader.option(LineReader.Option.AUTO_MENU_LIST, true);
     this.lineReader.option(LineReader.Option.CASE_INSENSITIVE, true);
     this.lineReader.option(LineReader.Option.COMPLETE_IN_WORD, true);
     this.lineReader.option(LineReader.Option.EMPTY_WORD_OPTIONS, false);
     this.lineReader.option(LineReader.Option.HISTORY_TIMESTAMPED, false);
+    this.lineReader.option(LineReader.Option.COMPLETE_MATCHER_TYPO, true);
     this.lineReader.option(LineReader.Option.DISABLE_EVENT_EXPANSION, true);
 
-    this.lineReader.variable(LineReader.BELL_STYLE, "none");
+    this.lineReader.variable(LineReader.ERRORS, 3);
     this.lineReader.variable(LineReader.HISTORY_SIZE, 500);
+    this.lineReader.variable(LineReader.BELL_STYLE, "none");
     this.lineReader.variable(LineReader.HISTORY_FILE_SIZE, 2500);
     this.lineReader.variable(LineReader.HISTORY_FILE, Path.of(HISTORY_FILE));
     this.lineReader.variable(LineReader.COMPLETION_STYLE_LIST_BACKGROUND, "inverse");
